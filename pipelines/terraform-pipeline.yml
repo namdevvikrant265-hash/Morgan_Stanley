@@ -152,16 +152,14 @@ stages:
 
   dependsOn: Plan
 
-  condition: and(
-    succeeded(),
-    eq(variables['Build.SourceBranch'], 'refs/heads/main')
-  )
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
 
   jobs:
   - deployment: TerraformApply
     displayName: 'Terraform Apply'
 
-    environment: 'terraform-production'
+    environment:
+      name: terraform-production
 
     pool:
       vmImage: 'ubuntu-latest'
