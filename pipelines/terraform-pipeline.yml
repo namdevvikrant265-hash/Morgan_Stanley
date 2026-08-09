@@ -33,13 +33,7 @@ stages:
 
     - checkout: self
 
-    # Install Terraform
-    - task: TerraformInstaller@1
-      displayName: 'Install Terraform'
-      inputs:
-        terraformVersion: '$(terraformVersion)'
-
-    # Check Terraform version
+    # Check Terraform
     - bash: |
         terraform version
       displayName: 'Terraform Version'
@@ -53,12 +47,17 @@ stages:
         scriptLocation: inlineScript
         inlineScript: |
           cd "$(terraformWorkingDirectory)"
+
           echo "Initializing Terraform..."
+
           terraform init -input=false
 
     # Terraform Format
     - bash: |
         cd "$(terraformWorkingDirectory)"
+
+        echo "Checking Terraform formatting..."
+
         terraform fmt -check -recursive
       displayName: 'Terraform Format Check'
 
@@ -71,8 +70,11 @@ stages:
         scriptLocation: inlineScript
         inlineScript: |
           cd "$(terraformWorkingDirectory)"
+
           echo "Validating Terraform configuration..."
+
           terraform validate
+
 
 # ============================================================
 # STAGE 2 - TERRAFORM PLAN
@@ -80,7 +82,9 @@ stages:
 
 - stage: Plan
   displayName: 'Terraform Plan'
+
   dependsOn: Validate
+
   condition: succeeded()
 
   jobs:
@@ -94,11 +98,10 @@ stages:
 
     - checkout: self
 
-    # Install Terraform
-    - task: TerraformInstaller@1
-      displayName: 'Install Terraform'
-      inputs:
-        terraformVersion: '$(terraformVersion)'
+    # Check Terraform
+    - bash: |
+        terraform version
+      displayName: 'Terraform Version'
 
     # Terraform Init
     - task: AzureCLI@2
@@ -109,6 +112,9 @@ stages:
         scriptLocation: inlineScript
         inlineScript: |
           cd "$(terraformWorkingDirectory)"
+
+          echo "Initializing Terraform..."
+
           terraform init -input=false
 
     # Terraform Plan
@@ -120,8 +126,14 @@ stages:
         scriptLocation: inlineScript
         inlineScript: |
           cd "$(terraformWorkingDirectory)"
+
           echo "Creating Terraform Plan..."
-          terraform plan -input=false -out="$(Build.ArtifactStagingDirectory)/tfplan"
+
+          terraform plan \
+            -input=false \
+            -out="$(Build.ArtifactStagingDirectory)/tfplan"
+      env:
+        TF_VAR_admin_password: $(TF_VAR_admin_password)
 
     # Publish Plan
     - task: PublishPipelineArtifact@1
@@ -130,18 +142,25 @@ stages:
         targetPath: '$(Build.ArtifactStagingDirectory)/tfplan'
         artifact: 'terraform-plan'
 
+
 # ============================================================
 # STAGE 3 - TERRAFORM APPLY
 # ============================================================
 
 - stage: Apply
   displayName: 'Terraform Apply'
+
   dependsOn: Plan
-  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+
+  condition: and(
+    succeeded(),
+    eq(variables['Build.SourceBranch'], 'refs/heads/main')
+  )
 
   jobs:
   - deployment: TerraformApply
     displayName: 'Terraform Apply'
+
     environment: 'terraform-production'
 
     pool:
@@ -154,11 +173,10 @@ stages:
 
           - checkout: self
 
-          # Install Terraform
-          - task: TerraformInstaller@1
-            displayName: 'Install Terraform'
-            inputs:
-              terraformVersion: '$(terraformVersion)'
+          # Check Terraform
+          - bash: |
+              terraform version
+            displayName: 'Terraform Version'
 
           # Download Plan
           - task: DownloadPipelineArtifact@2
@@ -176,6 +194,9 @@ stages:
               scriptLocation: inlineScript
               inlineScript: |
                 cd "$(terraformWorkingDirectory)"
+
+                echo "Initializing Terraform..."
+
                 terraform init -input=false
 
           # Terraform Apply
@@ -187,5 +208,12 @@ stages:
               scriptLocation: inlineScript
               inlineScript: |
                 cd "$(terraformWorkingDirectory)"
+
                 echo "Applying Terraform Plan..."
-                terraform apply -input=false -auto-approve "$(Pipeline.Workspace)/terraform-plan/tfplan"
+
+                terraform apply \
+                  -input=false \
+                  -auto-approve \
+                  "$(Pipeline.Workspace)/terraform-plan/tfplan"
+            env:
+              TF_VAR_admin_password: $(TF_VAR_admin_password)
