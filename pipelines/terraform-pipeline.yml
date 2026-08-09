@@ -3,11 +3,6 @@ trigger:
     include:
       - main
 
-pr:
-  branches:
-    include:
-      - main
-
 variables:
   terraformVersion: '1.9.8'
   terraformWorkingDirectory: '$(System.DefaultWorkingDirectory)/di-b18-infra/environments/prod'
@@ -20,7 +15,7 @@ stages:
 
   jobs:
   - job: ValidateTerraform
-    displayName: 'Terraform Init & Validate'
+    displayName: 'Terraform Validate'
 
     pool:
       vmImage: 'ubuntu-latest'
@@ -42,8 +37,8 @@ stages:
       displayName: 'Terraform Init'
       inputs:
         azureSubscription: '$(azureServiceConnection)'
-        scriptType: 'bash'
-        scriptLocation: 'inlineScript'
+        scriptType: bash
+        scriptLocation: inlineScript
         inlineScript: |
           cd "$(terraformWorkingDirectory)"
           terraform init -input=false
@@ -57,121 +52,8 @@ stages:
       displayName: 'Terraform Validate'
       inputs:
         azureSubscription: '$(azureServiceConnection)'
-        scriptType: 'bash'
-        scriptLocation: 'inlineScript'
+        scriptType: bash
+        scriptLocation: inlineScript
         inlineScript: |
           cd "$(terraformWorkingDirectory)"
           terraform validate
-
-
-- stage: Plan
-  displayName: 'Terraform Plan'
-
-  dependsOn: Validate
-  condition: succeeded()
-
-  jobs:
-  - job: TerraformPlan
-    displayName: 'Terraform Plan'
-
-    pool:
-      vmImage: 'ubuntu-latest'
-
-    steps:
-
-    - checkout: self
-
-    - task: TerraformInstaller@1
-      displayName: 'Install Terraform'
-      inputs:
-        terraformVersion: '$(terraformVersion)'
-
-    - task: AzureCLI@2
-      displayName: 'Terraform Init'
-      inputs:
-        azureSubscription: '$(azureServiceConnection)'
-        scriptType: 'bash'
-        scriptLocation: 'inlineScript'
-        inlineScript: |
-          cd "$(terraformWorkingDirectory)"
-          terraform init -input=false
-
-    - task: AzureCLI@2
-      displayName: 'Terraform Plan'
-      inputs:
-        azureSubscription: '$(azureServiceConnection)'
-        scriptType: 'bash'
-        scriptLocation: 'inlineScript'
-        inlineScript: |
-          cd "$(terraformWorkingDirectory)"
-          terraform plan \
-            -input=false \
-            -out="$(Build.ArtifactStagingDirectory)/tfplan"
-      env:
-        TF_VAR_admin_password: $(TF_VAR_admin_password)
-
-    - task: PublishPipelineArtifact@1
-      displayName: 'Publish Terraform Plan'
-      inputs:
-        targetPath: '$(Build.ArtifactStagingDirectory)/tfplan'
-        artifact: 'terraform-plan'
-
-
-- stage: Apply
-  displayName: 'Terraform Apply'
-
-  dependsOn: Plan
-
-  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
-
-  jobs:
-  - deployment: TerraformApply
-    displayName: 'Terraform Apply'
-
-    environment: 'terraform-production'
-
-    pool:
-      vmImage: 'ubuntu-latest'
-
-    strategy:
-      runOnce:
-        deploy:
-          steps:
-
-          - checkout: self
-
-          - task: TerraformInstaller@1
-            displayName: 'Install Terraform'
-            inputs:
-              terraformVersion: '$(terraformVersion)'
-
-          - task: DownloadPipelineArtifact@2
-            displayName: 'Download Terraform Plan'
-            inputs:
-              artifact: 'terraform-plan'
-              path: '$(Pipeline.Workspace)/terraform-plan'
-
-          - task: AzureCLI@2
-            displayName: 'Terraform Init'
-            inputs:
-              azureSubscription: '$(azureServiceConnection)'
-              scriptType: 'bash'
-              scriptLocation: 'inlineScript'
-              inlineScript: |
-                cd "$(terraformWorkingDirectory)"
-                terraform init -input=false
-
-          - task: AzureCLI@2
-            displayName: 'Terraform Apply'
-            inputs:
-              azureSubscription: '$(azureServiceConnection)'
-              scriptType: 'bash'
-              scriptLocation: 'inlineScript'
-              inlineScript: |
-                cd "$(terraformWorkingDirectory)"
-                terraform apply \
-                  -input=false \
-                  -auto-approve \
-                  "$(Pipeline.Workspace)/terraform-plan/tfplan"
-            env:
-              TF_VAR_admin_password: $(TF_VAR_admin_password)
