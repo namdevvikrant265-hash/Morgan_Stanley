@@ -1,33 +1,41 @@
 variable "rgs" {
-  type = map(any)
+  type    = map(any)
+  default = {}
 }
 
 variable "vnets" {
-  type = map(any)
+  type    = map(any)
+  default = {}
 }
 
 variable "subnets" {
-  type = map(any)
+  type    = map(any)
+  default = {}
 }
 
 variable "public_ips" {
-  type = map(any)
+  type    = map(any)
+  default = {}
 }
 
 variable "vms" {
-  type = map(any)
+  type    = map(any)
+  default = {}
 }
 
 variable "bastions" {
-  type = map(any)
+  type    = map(any)
+  default = {}
 }
 
 variable "app_gateways" {
-  type = map(any)
+  type    = map(any)
+  default = {}
 }
 
 variable "load_balancers" {
-  type = map(any)
+  type    = map(any)
+  default = {}
 }
 
 variable "key_vaults" {
@@ -38,10 +46,12 @@ variable "key_vaults" {
     rg_name     = string
     secret_name = string
   }))
+  default = {}
 }
 
 variable "admin_password" {
   description = "Administrator password for infrastructure secrets"
   type        = string
   sensitive   = true
+  default     = "P@ssw0rd12345!"
 }
