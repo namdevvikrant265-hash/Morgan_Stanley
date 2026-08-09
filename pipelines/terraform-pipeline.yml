@@ -33,10 +33,14 @@ stages:
 
     - checkout: self
 
-    # Check Terraform
+    # Install Terraform
     - bash: |
+        echo "Installing Terraform $(terraformVersion)..."
+        wget -q "https://releases.hashicorp.com/terraform/$(terraformVersion)/terraform_$(terraformVersion)_linux_amd64.zip"
+        unzip -o "terraform_$(terraformVersion)_linux_amd64.zip" -d /tmp/
+        sudo mv /tmp/terraform /usr/local/bin/
         terraform version
-      displayName: 'Terraform Version'
+      displayName: 'Install Terraform'
 
     # Terraform Init
     - task: AzureCLI@2
@@ -98,10 +102,14 @@ stages:
 
     - checkout: self
 
-    # Check Terraform
+    # Install Terraform
     - bash: |
+        echo "Installing Terraform $(terraformVersion)..."
+        wget -q "https://releases.hashicorp.com/terraform/$(terraformVersion)/terraform_$(terraformVersion)_linux_amd64.zip"
+        unzip -o "terraform_$(terraformVersion)_linux_amd64.zip" -d /tmp/
+        sudo mv /tmp/terraform /usr/local/bin/
         terraform version
-      displayName: 'Terraform Version'
+      displayName: 'Install Terraform'
 
     # Terraform Init
     - task: AzureCLI@2
@@ -171,10 +179,14 @@ stages:
 
           - checkout: self
 
-          # Check Terraform
+          # Install Terraform
           - bash: |
+              echo "Installing Terraform $(terraformVersion)..."
+              wget -q "https://releases.hashicorp.com/terraform/$(terraformVersion)/terraform_$(terraformVersion)_linux_amd64.zip"
+              unzip -o "terraform_$(terraformVersion)_linux_amd64.zip" -d /tmp/
+              sudo mv /tmp/terraform /usr/local/bin/
               terraform version
-            displayName: 'Terraform Version'
+            displayName: 'Install Terraform'
 
           # Download Plan
           - task: DownloadPipelineArtifact@2

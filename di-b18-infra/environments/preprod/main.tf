@@ -24,7 +24,7 @@ module "public_ip" {
 module "key_vault" {
   source = "../../modules/azurerm_key_vault"
 
-  key_vaults    = var.key_vaults
+  key_vaults     = var.key_vaults
   admin_password = var.admin_password
 }
 
