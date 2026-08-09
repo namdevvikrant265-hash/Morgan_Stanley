@@ -1,3 +1,4 @@
+```yaml
 trigger:
   branches:
     include:
@@ -33,18 +34,15 @@ stages:
 
     - checkout: self
 
-    # Install Terraform
     - task: TerraformInstaller@1
       displayName: 'Install Terraform'
       inputs:
         terraformVersion: '$(terraformVersion)'
 
-    # Check Terraform version
     - bash: |
         terraform version
       displayName: 'Terraform Version'
 
-    # Terraform Init
     - task: AzureCLI@2
       displayName: 'Terraform Init'
       inputs:
@@ -56,18 +54,16 @@ stages:
 
           echo "Initializing Terraform..."
 
-          terraform init \
-            -input=false
+          terraform init -input=false
 
-    # Terraform Format
     - bash: |
         cd "$(terraformWorkingDirectory)"
 
-        terraform fmt -check -recursive
+        echo "Checking Terraform formatting..."
 
+        terraform fmt -check -recursive
       displayName: 'Terraform Format Check'
 
-    # Terraform Validate
     - task: AzureCLI@2
       displayName: 'Terraform Validate'
       inputs:
@@ -104,13 +100,11 @@ stages:
 
     - checkout: self
 
-    # Install Terraform
     - task: TerraformInstaller@1
       displayName: 'Install Terraform'
       inputs:
         terraformVersion: '$(terraformVersion)'
 
-    # Terraform Init
     - task: AzureCLI@2
       displayName: 'Terraform Init'
       inputs:
@@ -120,10 +114,10 @@ stages:
         inlineScript: |
           cd "$(terraformWorkingDirectory)"
 
-          terraform init \
-            -input=false
+          echo "Initializing Terraform..."
 
-    # Terraform Plan
+          terraform init -input=false
+
     - task: AzureCLI@2
       displayName: 'Terraform Plan'
       inputs:
@@ -138,8 +132,9 @@ stages:
           terraform plan \
             -input=false \
             -out="$(Build.ArtifactStagingDirectory)/tfplan"
+      env:
+        TF_VAR_admin_password: $(TF_VAR_admin_password)
 
-    # Publish Plan
     - task: PublishPipelineArtifact@1
       displayName: 'Publish Terraform Plan'
       inputs:
@@ -159,6 +154,7 @@ stages:
   condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
 
   jobs:
+
   - deployment: TerraformApply
     displayName: 'Terraform Apply'
 
@@ -170,25 +166,21 @@ stages:
     strategy:
       runOnce:
         deploy:
-
           steps:
 
           - checkout: self
 
-          # Install Terraform
           - task: TerraformInstaller@1
             displayName: 'Install Terraform'
             inputs:
               terraformVersion: '$(terraformVersion)'
 
-          # Download Plan
           - task: DownloadPipelineArtifact@2
             displayName: 'Download Terraform Plan'
             inputs:
               artifact: 'terraform-plan'
               path: '$(Pipeline.Workspace)/terraform-plan'
 
-          # Terraform Init
           - task: AzureCLI@2
             displayName: 'Terraform Init'
             inputs:
@@ -198,10 +190,10 @@ stages:
               inlineScript: |
                 cd "$(terraformWorkingDirectory)"
 
-                terraform init \
-                  -input=false
+                echo "Initializing Terraform..."
 
-          # Terraform Apply
+                terraform init -input=false
+
           - task: AzureCLI@2
             displayName: 'Terraform Apply'
             inputs:
@@ -217,3 +209,6 @@ stages:
                   -input=false \
                   -auto-approve \
                   "$(Pipeline.Workspace)/terraform-plan/tfplan"
+            env:
+              TF_VAR_admin_password: $(TF_VAR_admin_password)
+```
