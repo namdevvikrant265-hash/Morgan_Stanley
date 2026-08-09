@@ -1,6 +1,6 @@
 module "resource_group" {
   source = "../../modules/azurerm_resource_group"
-  rgs    = var.rg
+  rgs    = var.rgs
 }
 
 module "virtual_network" {
@@ -22,9 +22,10 @@ module "public_ip" {
 }
 
 module "key_vault" {
-  depends_on = [module.resource_group]
-  source     = "../../modules/azurerm_key_vault"
-  key_vaults = var.key_vaults
+  source = "../../modules/azurerm_key_vault"
+
+  key_vaults    = var.key_vaults
+  admin_password = var.admin_password
 }
 
 module "virtual_machines" {

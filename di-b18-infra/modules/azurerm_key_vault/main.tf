@@ -24,6 +24,6 @@ resource "azurerm_key_vault" "kv" {
 resource "azurerm_key_vault_secret" "admin_password" {
   for_each     = var.key_vaults
   name         = each.value.secret_name
-  value        = "DevOps@123"
+  value        = var.admin_password
   key_vault_id = azurerm_key_vault.kv[each.key].id
 }
