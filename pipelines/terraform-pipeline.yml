@@ -3,6 +3,11 @@ trigger:
     include:
       - main
 
+pr:
+  branches:
+    include:
+      - main
+
 variables:
   terraformVersion: '1.9.8'
   terraformWorkingDirectory: '$(System.DefaultWorkingDirectory)/di-b18-infra/environments/prod'
@@ -10,12 +15,16 @@ variables:
 
 stages:
 
+# ============================================================
+# STAGE 1 - TERRAFORM VALIDATION
+# ============================================================
+
 - stage: Validate
   displayName: 'Terraform Validate'
 
   jobs:
   - job: ValidateTerraform
-    displayName: 'Terraform Validate'
+    displayName: 'Terraform Init & Validate'
 
     pool:
       vmImage: 'ubuntu-latest'
@@ -24,15 +33,74 @@ stages:
 
     - checkout: self
 
+    # Install Terraform
     - task: TerraformInstaller@1
       displayName: 'Install Terraform'
       inputs:
         terraformVersion: '$(terraformVersion)'
 
+    # Check Terraform version
     - bash: |
         terraform version
       displayName: 'Terraform Version'
 
+    # Terraform Init
+    - task: AzureCLI@2
+      displayName: 'Terraform Init'
+      inputs:
+        azureSubscription: '$(azureServiceConnection)'
+        scriptType: bash
+        scriptLocation: inlineScript
+        inlineScript: |
+          cd "$(terraformWorkingDirectory)"
+          echo "Initializing Terraform..."
+          terraform init -input=false
+
+    # Terraform Format
+    - bash: |
+        cd "$(terraformWorkingDirectory)"
+        terraform fmt -check -recursive
+      displayName: 'Terraform Format Check'
+
+    # Terraform Validate
+    - task: AzureCLI@2
+      displayName: 'Terraform Validate'
+      inputs:
+        azureSubscription: '$(azureServiceConnection)'
+        scriptType: bash
+        scriptLocation: inlineScript
+        inlineScript: |
+          cd "$(terraformWorkingDirectory)"
+          echo "Validating Terraform configuration..."
+          terraform validate
+
+# ============================================================
+# STAGE 2 - TERRAFORM PLAN
+# ============================================================
+
+- stage: Plan
+  displayName: 'Terraform Plan'
+  dependsOn: Validate
+  condition: succeeded()
+
+  jobs:
+  - job: TerraformPlan
+    displayName: 'Terraform Plan'
+
+    pool:
+      vmImage: 'ubuntu-latest'
+
+    steps:
+
+    - checkout: self
+
+    # Install Terraform
+    - task: TerraformInstaller@1
+      displayName: 'Install Terraform'
+      inputs:
+        terraformVersion: '$(terraformVersion)'
+
+    # Terraform Init
     - task: AzureCLI@2
       displayName: 'Terraform Init'
       inputs:
@@ -43,17 +111,81 @@ stages:
           cd "$(terraformWorkingDirectory)"
           terraform init -input=false
 
-    - bash: |
-        cd "$(terraformWorkingDirectory)"
-        terraform fmt -check -recursive
-      displayName: 'Terraform Format Check'
-
+    # Terraform Plan
     - task: AzureCLI@2
-      displayName: 'Terraform Validate'
+      displayName: 'Terraform Plan'
       inputs:
         azureSubscription: '$(azureServiceConnection)'
         scriptType: bash
         scriptLocation: inlineScript
         inlineScript: |
           cd "$(terraformWorkingDirectory)"
-          terraform validate
+          echo "Creating Terraform Plan..."
+          terraform plan -input=false -out="$(Build.ArtifactStagingDirectory)/tfplan"
+
+    # Publish Plan
+    - task: PublishPipelineArtifact@1
+      displayName: 'Publish Terraform Plan'
+      inputs:
+        targetPath: '$(Build.ArtifactStagingDirectory)/tfplan'
+        artifact: 'terraform-plan'
+
+# ============================================================
+# STAGE 3 - TERRAFORM APPLY
+# ============================================================
+
+- stage: Apply
+  displayName: 'Terraform Apply'
+  dependsOn: Plan
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+
+  jobs:
+  - deployment: TerraformApply
+    displayName: 'Terraform Apply'
+    environment: 'terraform-production'
+
+    pool:
+      vmImage: 'ubuntu-latest'
+
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+
+          - checkout: self
+
+          # Install Terraform
+          - task: TerraformInstaller@1
+            displayName: 'Install Terraform'
+            inputs:
+              terraformVersion: '$(terraformVersion)'
+
+          # Download Plan
+          - task: DownloadPipelineArtifact@2
+            displayName: 'Download Terraform Plan'
+            inputs:
+              artifact: 'terraform-plan'
+              path: '$(Pipeline.Workspace)/terraform-plan'
+
+          # Terraform Init
+          - task: AzureCLI@2
+            displayName: 'Terraform Init'
+            inputs:
+              azureSubscription: '$(azureServiceConnection)'
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                cd "$(terraformWorkingDirectory)"
+                terraform init -input=false
+
+          # Terraform Apply
+          - task: AzureCLI@2
+            displayName: 'Terraform Apply'
+            inputs:
+              azureSubscription: '$(azureServiceConnection)'
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                cd "$(terraformWorkingDirectory)"
+                echo "Applying Terraform Plan..."
+                terraform apply -input=false -auto-approve "$(Pipeline.Workspace)/terraform-plan/tfplan"
