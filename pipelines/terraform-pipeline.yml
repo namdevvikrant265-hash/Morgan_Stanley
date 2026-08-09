@@ -1,4 +1,3 @@
-```yaml
 trigger:
   branches:
     include:
@@ -15,10 +14,6 @@ variables:
   azureServiceConnection: 'vikserviceconnection'
 
 stages:
-
-# ============================================================
-# STAGE 1 - TERRAFORM VALIDATION
-# ============================================================
 
 - stage: Validate
   displayName: 'Terraform Validate'
@@ -51,16 +46,10 @@ stages:
         scriptLocation: 'inlineScript'
         inlineScript: |
           cd "$(terraformWorkingDirectory)"
-
-          echo "Initializing Terraform..."
-
           terraform init -input=false
 
     - bash: |
         cd "$(terraformWorkingDirectory)"
-
-        echo "Checking Terraform formatting..."
-
         terraform fmt -check -recursive
       displayName: 'Terraform Format Check'
 
@@ -72,21 +61,13 @@ stages:
         scriptLocation: 'inlineScript'
         inlineScript: |
           cd "$(terraformWorkingDirectory)"
-
-          echo "Validating Terraform configuration..."
-
           terraform validate
 
-
-# ============================================================
-# STAGE 2 - TERRAFORM PLAN
-# ============================================================
 
 - stage: Plan
   displayName: 'Terraform Plan'
 
   dependsOn: Validate
-
   condition: succeeded()
 
   jobs:
@@ -113,9 +94,6 @@ stages:
         scriptLocation: 'inlineScript'
         inlineScript: |
           cd "$(terraformWorkingDirectory)"
-
-          echo "Initializing Terraform..."
-
           terraform init -input=false
 
     - task: AzureCLI@2
@@ -126,9 +104,6 @@ stages:
         scriptLocation: 'inlineScript'
         inlineScript: |
           cd "$(terraformWorkingDirectory)"
-
-          echo "Creating Terraform Plan..."
-
           terraform plan \
             -input=false \
             -out="$(Build.ArtifactStagingDirectory)/tfplan"
@@ -142,10 +117,6 @@ stages:
         artifact: 'terraform-plan'
 
 
-# ============================================================
-# STAGE 3 - TERRAFORM APPLY
-# ============================================================
-
 - stage: Apply
   displayName: 'Terraform Apply'
 
@@ -154,7 +125,6 @@ stages:
   condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
 
   jobs:
-
   - deployment: TerraformApply
     displayName: 'Terraform Apply'
 
@@ -189,9 +159,6 @@ stages:
               scriptLocation: 'inlineScript'
               inlineScript: |
                 cd "$(terraformWorkingDirectory)"
-
-                echo "Initializing Terraform..."
-
                 terraform init -input=false
 
           - task: AzureCLI@2
@@ -202,13 +169,9 @@ stages:
               scriptLocation: 'inlineScript'
               inlineScript: |
                 cd "$(terraformWorkingDirectory)"
-
-                echo "Applying Terraform Plan..."
-
                 terraform apply \
                   -input=false \
                   -auto-approve \
                   "$(Pipeline.Workspace)/terraform-plan/tfplan"
             env:
               TF_VAR_admin_password: $(TF_VAR_admin_password)
-```
