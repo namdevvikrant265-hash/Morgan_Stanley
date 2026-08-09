@@ -139,7 +139,7 @@ stages:
 
           terraform plan \
             -input=false \
-            -var-file="terraform.tfvars" \
+            -var-file="$(terraformWorkingDirectory)/terraform.tfvars" \
             -out="$(Build.ArtifactStagingDirectory)/tfplan"
       env:
         TF_VAR_admin_password: $(TF_VAR_admin_password)
