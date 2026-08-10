@@ -137,10 +137,11 @@ stages:
 
           echo "Creating Terraform Plan..."
 
-          terraform plan \
-            -input=false \
-            -var-file="$(terraformWorkingDirectory)/terraform.tfvars" \
-            -out="$(Build.ArtifactStagingDirectory)/tfplan"
+          if [ -f "terraform.tfvars" ]; then
+            terraform plan -input=false -var-file="terraform.tfvars" -out="$(Build.ArtifactStagingDirectory)/tfplan"
+          else
+            terraform plan -input=false -out="$(Build.ArtifactStagingDirectory)/tfplan"
+          fi
       env:
         TF_VAR_admin_password: $(TF_VAR_admin_password)
 
